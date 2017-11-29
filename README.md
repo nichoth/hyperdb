@@ -155,6 +155,9 @@ value of a key at a point in time, `value` will have multiple entries.
 Returns a readable stream of node objects covering all historic values since the
 beginning of time.
 
+Nodes are emitted in topographic order, meaning if value `v2` was aware of value
+`v1` at its insertion time, `v1` must be emitted before `v2`.
+
 #### `var stream = db.replicate([options])`
 
 Create a replication stream. Options include:
