@@ -965,31 +965,40 @@ DB.prototype.createHistoryStream = function () {
   get()
 
   function get () {
-    if (n >= seq.length) n = 0
     if (self._writers[n].feed.length <= seq[n]) {
-      n++
-      return process.nextTick(get)
+      n = (n + 1) % self._writers.length
+      get()
+      return
     }
-    self._writers[n].get(seq[n], function (err, val) {
-      // Check if this node can be emitted now
-      // Q: how can you tell?
-
-      // If so emit it and move onto seq++
-      stream.push(val)
-      seq[n]++
-      if (seq[n] >= self._writers[n].feed.length) {
-        --pending
-        if (!pending) {
-          stream.push(null)
-          return
+    self._writers[n].get(seq[n], function (err, node) {
+      // Check if this node can be emitted now. If this node refers to nodes
+      // that have not yet been processed, they need to be processed first. We
+      // move on to the next feed.
+      if (afterClock(seq, node.clock)) {
+        n = (n + 1) % seq.length
+      } else {
+        // Emit the node and move onto seq++ for this feed
+        stream.push(node)
+        seq[n]++
+        if (seq[n] >= self._writers[n].feed.length) {
+          --pending
+          if (!pending) {
+            stream.push(null)
+            return
+          }
         }
       }
 
-      // Otherwise, move on to the next feed
-      // n++
-
       process.nextTick(get)
     })
+  }
+
+  // Returns true if 'a' is further in the future than 'b'
+  function afterClock (a, b) {
+    for (var i=0; i < b.length; i++) {
+      if (a[i] < b[i]) return true
+    }
+    return false
   }
 
   return stream
