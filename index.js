@@ -958,6 +958,13 @@ DB.prototype.createHistoryStream = function () {
 
   var pending = this._writers.length
 
+  // Don't count feeds with no entries against the 'pending' count
+  for (var i=0; i < this._writers.length; i++) {
+    if (this._writers[i].feed.length === 0) {
+      pending--
+    }
+  }
+
   // Track what seq# we're at for each feed
   var seq = this._writers.map(function () { return 0 })
 
