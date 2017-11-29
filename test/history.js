@@ -31,6 +31,51 @@ tape('single value', function (t) {
   })
 })
 
+tape('mutliple values', function (t) {
+  var db = create.one()
+
+  db.put('/a', '2', function (err) {
+    t.error(err, 'no error')
+    db.put('/b/0', 'boop', function (err) {
+      t.error(err, 'no error')
+      var rs = db.createHistoryStream()
+      collect(rs, function (err, actual) {
+        t.error(err, 'no error')
+        t.equals(actual.length, 2)
+        t.equals(actual[0].key, '/a')
+        t.equals(actual[0].value, '2')
+        t.equals(actual[1].key, '/b/0')
+        t.equals(actual[1].value, 'boop')
+        t.end()
+      })
+    })
+  })
+})
+
+tape('mutliple values: same key', function (t) {
+  var db = create.one()
+
+  db.put('/a', '2', function (err) {
+    t.error(err, 'no error')
+    db.put('/a', 'boop', function (err) {
+      t.error(err, 'no error')
+      var rs = db.createHistoryStream()
+      collect(rs, function (err, actual) {
+        t.error(err, 'no error')
+        t.equals(actual.length, 2)
+        t.equals(actual[0].key, '/a')
+        t.equals(actual[0].value, '2')
+        t.equals(actual[1].key, '/a')
+        t.equals(actual[1].value, 'boop')
+        t.end()
+      })
+    })
+  })
+})
+
+// TODO: multiple feeds (/wo conflict)
+// TODO: multiple feeds (/w conflict in toposort)
+
 function collect (stream, cb) {
   var res = []
   stream.on('data', res.push.bind(res))
