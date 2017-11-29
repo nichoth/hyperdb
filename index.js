@@ -959,7 +959,7 @@ DB.prototype.createHistoryStream = function () {
   var pending = this._writers.length
 
   // Don't count feeds with no entries against the 'pending' count
-  for (var i=0; i < this._writers.length; i++) {
+  for (var i = 0; i < this._writers.length; i++) {
     if (this._writers[i].feed.length === 0) {
       pending--
     }
@@ -978,6 +978,10 @@ DB.prototype.createHistoryStream = function () {
       return
     }
     self._writers[n].get(seq[n], function (err, node) {
+      if (err) {
+        return cb(err)
+      }
+
       // Check if this node can be emitted now. If this node refers to nodes
       // that have not yet been processed, they need to be processed first. We
       // move on to the next feed.
@@ -1002,7 +1006,7 @@ DB.prototype.createHistoryStream = function () {
 
   // Returns true if 'a' is further in the future than 'b'
   function afterClock (a, b) {
-    for (var i=0; i < b.length; i++) {
+    for (var i = 0; i < b.length; i++) {
       if (a[i] < b[i]) return true
     }
     return false
