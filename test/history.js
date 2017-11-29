@@ -82,7 +82,7 @@ tape('2 feeds', function (t) {
     })
 
     function validate () {
-      var rs = b.createHistoryStream('/a')
+      var rs = b.createHistoryStream()
       collect(rs, function (err, actual) {
         t.error(err, 'no error')
         t.equals(actual.length, 3)
@@ -110,7 +110,7 @@ tape('2 feeds: clock conflict', function (t) {
     })
 
     function validate () {
-      var rs = a.createHistoryStream('/a')
+      var rs = a.createHistoryStream()
       collect(rs, function (err, actual) {
         t.error(err, 'no error')
         t.equals(actual.length, 4)
@@ -139,7 +139,7 @@ tape('3 feeds', function (t) {
     })
 
     function validate () {
-      var rs = a.createHistoryStream('/a')
+      var rs = a.createHistoryStream()
       collect(rs, function (err, actual) {
         t.error(err, 'no error')
         t.equals(actual.length, 5)
@@ -171,7 +171,7 @@ tape('3 feeds: clock conflict', function (t) {
     })
 
     function validate () {
-      var rs = c.createHistoryStream('/a')
+      var rs = c.createHistoryStream()
       collect(rs, function (err, actual) {
         t.error(err, 'no error')
         t.equals(actual.length, 6)
