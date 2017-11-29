@@ -150,6 +150,11 @@ time.
 that occured between `checkout` and `head`. When multiple feeds conflict for the
 value of a key at a point in time, `value` will have multiple entries.
 
+#### `var stream = db.createHistoryStream()
+
+Returns a readable stream of node objects covering all historic values since the
+beginning of time.
+
 #### `var stream = db.replicate([options])`
 
 Create a replication stream. Options include:
