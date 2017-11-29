@@ -149,17 +149,7 @@ DB.prototype.checkout = function (version, opts) {
   if (typeof version === 'string') version = toBuffer(version, 'hex')
 
   opts.parent = this
-
-  var ptr = 0
-  var heads = opts.checkout = []
-
-  while (ptr < version.length) {
-    var key = version.slice(ptr, ptr + 32)
-    ptr += 32
-    var seq = varint.decode(version, ptr)
-    ptr += varint.decode.bytes
-    heads.push({key: key, seq: seq})
-  }
+  opts.checkout = versionToHeads(version)
 
   return new DB(this._storage, null, opts)
 }
@@ -1083,4 +1073,20 @@ function isOptions (opts) {
 function sortNodes (a, b) {
   if (a.feed === b.feed) return a.seq - b.seq
   return a.feed - b.feed
+}
+
+// Buffer -> [Head]
+function versionToHeads (version) {
+  var ptr = 0
+  var heads = []
+
+  while (ptr < version.length) {
+    var key = version.slice(ptr, ptr + 32)
+    ptr += 32
+    var seq = varint.decode(version, ptr)
+    ptr += varint.decode.bytes
+    heads.push({key: key, seq: seq})
+  }
+
+  return heads
 }
