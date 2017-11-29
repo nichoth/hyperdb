@@ -166,11 +166,12 @@ DB.prototype.version = function (cb) {
       var h = heads[i]
       var w = self._writers[h.feed]
 
-      arr.push(w.key)
-      arr.push(toBuffer(varint.encode(h.seq)))
+      arr.push({key: w.key, seq: h.seq})
     }
 
-    cb(null, Buffer.concat(arr))
+    var version = headsToVersion(arr)
+
+    cb(null, version)
   })
 }
 
@@ -1089,4 +1090,16 @@ function versionToHeads (version) {
   }
 
   return heads
+}
+
+// [Head] -> Buffer
+function headsToVersion (heads) {
+  var bufAccum = []
+
+  for (var i = 0; i < heads.length; i++) {
+    bufAccum.push(heads[i].key)
+    bufAccum.push(toBuffer(varint.encode(heads[i].seq)))
+  }
+
+  return Buffer.concat(bufAccum)
 }
