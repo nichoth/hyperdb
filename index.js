@@ -929,20 +929,12 @@ DB.prototype._visitTrie = function (key, path, node, heads, halt, visited, cb, t
   }
 }
 
-// TODO(noffle): accept 'version' value for starting point
-DB.prototype.createHistoryStream = function () {
+DB.prototype.createHistoryStream = function (start) {
   var stream = new Readable({objectMode: true})
   stream._read = noop
 
   function cb (err) {
     stream.emit('error', err)
-  }
-
-  if (!this._writers.length) {
-    process.nextTick(function () {
-      stream.push(null)
-    })
-    return stream
   }
 
   var self = this
@@ -957,18 +949,68 @@ DB.prototype.createHistoryStream = function () {
   }
 
   // Track what seq# we're at for each feed
-  var seq = this._writers.map(function () { return 0 })
+  var seq = {}
+  for (i = 0; i < this._writers.length; i++) {
+    seq[this._writers[i].key.toString('hex')] = 0
+  }
+
+  // Track how each clock index maps to feeds, per feed
+  var feeds = (new Array(this._writers.length)).fill(0).map(function () { return {} })
+
+  // Use 'start' version if provided
+  if (start) {
+    var heads = versionToHeads(start)
+
+    // augment heads
+    for (i = 0; i < this._writers.length; i++) {
+      var found = false
+      for (var j = 0; j < heads.length; j++) {
+        if (heads[j].key.equals(this._writers[i].key)) {
+          found = true
+          break
+        }
+      }
+      if (!found) {
+        console.log('add fake missing head', this._writers[i].key, i)
+        heads.push({ key: this._writers[i].key, seq: -1 })
+      }
+    }
+
+    console.log('start-heads', heads)
+    for (i = 0; i < heads.length; i++) {
+      for (var j = 0; j < this._writers.length; j++) {
+        var w = this._writers[j]
+        if (w.key.equals(heads[i].key)) {
+          feeds[j] = Object.assign([], heads)
+          seq[w.key.toString('hex')] = heads[i].seq + 1
+          if (heads[i].seq > -1 && seq[w.key.toString('hex')] >= w.feed.length) {
+            pending--
+          }
+        }
+      }
+    }
+  }
+
+  console.log('start-seq', seq)
+
+  if (!pending) {
+    process.nextTick(function () {
+      stream.push(null)
+    })
+    return stream
+  }
 
   var n = 0
   get()
 
   function get () {
-    if (self._writers[n].feed.length <= seq[n]) {
+    console.log('get', n, self._writers[n].feed.length, seq, pending)
+    if (self._writers[n].feed.length <= seq[self._writers[n].key.toString('hex')]) {
       n = (n + 1) % self._writers.length
       get()
       return
     }
-    self._writers[n].get(seq[n], function (err, node) {
+    self._writers[n].get(seq[self._writers[n].key.toString('hex')], function (err, node) {
       if (err) {
         return cb(err)
       }
@@ -976,13 +1018,21 @@ DB.prototype.createHistoryStream = function () {
       // Check if this node can be emitted now. If this node refers to nodes
       // that have not yet been processed, they need to be processed first. We
       // move on to the next feed.
-      if (afterClock(seq, node.clock)) {
-        n = (n + 1) % seq.length
+      console.log('node', node, feeds)
+      var feedsToTest = node.feeds.length ? node.feeds : feeds[n]
+      if (afterClock(node.clock, feedsToTest)) {
+        n = (n + 1) % self._writers.length
       } else {
+        // Record its feeds, if present
+        if (node.feeds.length) {
+          feeds[n] = node.feeds
+        }
+
         // Emit the node and move onto seq++ for this feed
         stream.push(node)
-        seq[n]++
-        if (seq[n] >= self._writers[n].feed.length) {
+        var hexKey = self._writers[n].key.toString('hex')
+        seq[hexKey]++
+        if (seq[hexKey] >= self._writers[n].feed.length) {
           --pending
           if (!pending) {
             stream.push(null)
@@ -995,11 +1045,14 @@ DB.prototype.createHistoryStream = function () {
     })
   }
 
-  // Returns true if 'a' is further in the future than 'b'
-  function afterClock (a, b) {
-    for (var i = 0; i < b.length; i++) {
-      if (a[i] < b[i]) return true
+  // Returns true if the given (clock, feeds) comes after the current 'seq' set
+  function afterClock (clock, feeds) {
+    console.log('after check', seq, clock, feeds)
+    for (var i = 0; i < clock.length; i++) {
+      var hexKey = feeds[i].key.toString('hex')
+      if (seq[hexKey] < clock[i]) return true
     }
+    console.log('false')
     return false
   }
 
