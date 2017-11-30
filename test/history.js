@@ -31,7 +31,7 @@ tape('single value', function (t) {
   })
 })
 
-tape('mutliple values', function (t) {
+tape('multiple values', function (t) {
   var db = create.one()
 
   db.put('/a', '2', function (err) {
@@ -52,7 +52,7 @@ tape('mutliple values', function (t) {
   })
 })
 
-tape('mutliple values: same key', function (t) {
+tape('multiple values: same key', function (t) {
   var db = create.one()
 
   db.put('/a', '2', function (err) {
